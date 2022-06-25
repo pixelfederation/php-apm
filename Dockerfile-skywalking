@@ -1,0 +1,43 @@
+ARG PHP_VERSION
+
+FROM php:${PHP_VERSION} as builder
+
+LABEL maintainer="ahamsik@pixelfederation.com"
+LABEL container="PHP base image container"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-color
+ENV SHELL=/bin/bash
+ENV MAKEFLAGS="-j 8 --load-average=10"
+
+# ENV PROTOBUF_VERSION 3.14.0
+# ENV PROTOBUF_URL https://github.com/protocolbuffers/protobuf/releases/download/v"$PROTOBUF_VERSION"/protobuf-cpp-"$PROTOBUF_VERSION".zip
+# ENV RUSTFLAGS="-Ctarget-feature=-crt-static"
+
+RUN apt-get update && \
+    apt-get install -y libmcrypt-dev zlib1g-dev libmemcached-dev \
+                       git automake wget unzip libtool-bin cmake \
+                       apt-transport-https lsb-release ca-certificates libfcgi0ldbl \
+                       openssl libssl-dev libzip-dev libbz2-dev libunwind-dev \
+                       zlib1g-dev cmake google-perftools libjemalloc-dev \
+                       libbrotli-dev libzstd-dev libnghttp2-dev libonig-dev libpcre3 libpcre3-dev libwebp-dev \
+                       liblz4-dev zlib1g-dev libsasl2-dev libssl-dev libzstd-dev rapidjson-dev python3 \
+                       protobuf-compiler protobuf-compiler-grpc
+
+# RUN curl --silent -L -o protobuf.zip "$PROTOBUF_URL" && \
+#     unzip protobuf.zip && \
+#     cd protobuf-"$PROTOBUF_VERSION" && \
+#     ./configure && make && make install
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+ENV PATH=${PATH}:/root/.cargo/bin
+
+RUN wget https://curl.se/download/curl-7.83.1.tar.gz -O /tmp/libcurl.tar.gz && \
+    tar -xzf /tmp/libcurl.tar.gz -C /tmp/ && \
+    cd /tmp/curl-7.83.1 && \
+    ./configure --with-openssl --with-nghttp2 --with-ngtcp2 --with-brotli --enable-versioned-symbols && \
+    make && rm /usr/local/include/curl &&   make install
+
+RUN git clone https://github.com/SkyAPM/SkyAPM-php-sdk.git /tmp/SkyAPM-php-sdk && cd /tmp/SkyAPM-php-sdk  && \
+    phpize && git submodule update --init && ./configure && make

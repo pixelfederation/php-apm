@@ -1,0 +1,36 @@
+ARG PHP_VERSION
+
+FROM php:${PHP_VERSION} as builder
+
+LABEL maintainer="ahamsik@pixelfederation.com"
+LABEL container="PHP base image container"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-color
+ENV SHELL=/bin/bash
+ENV MAKEFLAGS="-j 8 --load-average=10"
+
+RUN apt-get update && \
+    apt-get install -y libmcrypt-dev zlib1g-dev libmemcached-dev \
+                       git automake wget unzip libtool-bin cmake \
+                       apt-transport-https lsb-release ca-certificates libfcgi0ldbl \
+                       openssl libssl-dev libzip-dev libbz2-dev libunwind-dev
+
+COPY ./get_arch.sh /
+RUN chmod +x /get_arch.sh
+
+# https://tideways.com/profiler/blog/changelog
+ENV TIDEWAYS_EXT_VER=5.5.2
+ENV TIDEWAYS_DAEMON_VER=1.7.28
+
+# https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-arm64.tar.gz
+# https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-x86_64.tar.gz
+RUN wget https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-$(/get_arch.sh).tar.gz -O /tmp/tideways-ext.tar.gz && \
+    tar -xzf /tmp/tideways-ext.tar.gz -C /tmp && cd /tmp/tideways-${TIDEWAYS_EXT_VER} && \
+    ls -la
+
+# https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_amd64-1.7.28.tar.gz
+# https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_aarch64-1.7.28.tar.gz
+# RUN wget -O tideways-daemon.tar.gz https://s3-eu-west-1.amazonaws.com/tideways/daemon/${TIDEWAYS_DAEMON_VER}/tideways-daemon_linux_$(uname -m)-${TIDEWAYS_DAEMON_VER}.tar.gz && \
+#     tar -xzf /tmp/tideways-daemon.tar.gz -C /tmp && cd /tmp/tideways-daemon_${TIDEWAYS_DAEMON_VER} && \
+#     ls -la
