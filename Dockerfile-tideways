@@ -27,7 +27,7 @@ ENV TIDEWAYS_DAEMON_VER=1.7.28
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-x86_64.tar.gz
 RUN wget https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-$(/get_arch.sh).tar.gz -O /tmp/tideways-ext.tar.gz && \
     tar -xzf /tmp/tideways-ext.tar.gz -C /tmp && cd /tmp/tideways-${TIDEWAYS_EXT_VER} && \
-    ls -la
+    ./install.sh && cp tideways.ini /usr/local/etc/php-fpm.d/
 
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_amd64-1.7.28.tar.gz
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_aarch64-1.7.28.tar.gz
