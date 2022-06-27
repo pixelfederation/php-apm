@@ -3,7 +3,7 @@ ARG PHP_VERSION
 FROM php:${PHP_VERSION} as builder
 
 LABEL maintainer="ahamsik@pixelfederation.com"
-LABEL container="PHP base image container"
+LABEL container="PHP apm image container"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-color
