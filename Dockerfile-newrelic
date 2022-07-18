@@ -1,6 +1,7 @@
-ARG PHP_VERSION
+ARG PHP_VERSION=8.1
 
 FROM php:${PHP_VERSION} as builder
+ARG NEWRELIC_VERS=v10.0.0.312
 
 LABEL maintainer="ahamsik@pixelfederation.com"
 LABEL container="PHP newrelic apm image container"
@@ -8,25 +9,22 @@ LABEL container="PHP newrelic apm image container"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-color
 ENV SHELL=/bin/bash
-ENV MAKEFLAGS="-j 8 --load-average=10"
+ENV MAKEFLAGS="-j 10 --load-average=10"
 
-RUN apt-get update && \
-    apt-get install -y libmcrypt-dev zlib1g-dev libmemcached-dev \
-                       git automake wget unzip libtool-bin cmake \
-                       apt-transport-https lsb-release ca-certificates libfcgi0ldbl \
-                       openssl libssl-dev libzip-dev libbz2-dev libunwind-dev \
-                       zlib1g-dev cmake google-perftools libjemalloc-dev \
-                       libbrotli-dev libzstd-dev libnghttp2-dev libonig-dev libpcre3 libpcre3-dev libwebp-dev \
-                       liblz4-dev zlib1g-dev libsasl2-dev libssl-dev libzstd-dev rapidjson-dev python3 \
-                       libedit-dev libedit2 libpng-dev libpng16-16 libtidy-dev libtidy5deb1 libreadline8 libreadline-dev libxslt1.1 libxslt1-dev libmcrypt-dev libpcre3 libpcre3-dev
-
-RUN wget https://go.dev/dl/go1.18.3.linux-arm64.tar.gz -O /tmp/go.tar.gz && \
+RUN apt-get update && apt-get install -y git build-essential libtool-bin libpcre3-dev
+RUN curl -LSs https://go.dev/dl/go1.18.3.linux-$(dpkg-architecture --query DEB_BUILD_ARCH).tar.gz -o /tmp/go.tar.gz && \
     tar -xzf /tmp/go.tar.gz -C /usr/local
 
 ENV PATH=${PATH}:/usr/local/go/bin
 
-RUN git clone https://github.com/newrelic/newrelic-php-agent.git /tmp/newrelic-php-agent && cd /tmp/newrelic-php-agent && \
-    make all && make agent-install && \
-    cp bin/daemon /usr/bin/newrelic-daemon && cp bin/client /usr/local/bin/newrelic-client
+RUN git clone -b ${NEWRELIC_VERS} https://github.com/newrelic/newrelic-php-agent.git /tmp/newrelic-php-agent && cd /tmp/newrelic-php-agent && \
+    make all && make agent && make agent-install && docker-php-ext-enable newrelic
 
-RUN  mkdir /var/log/newrelic && chown www-data:www-data  /var/log/newrelic
+RUN  mkdir /var/log/newrelic && chown 33:33  /var/log/newrelic
+
+FROM php:${PHP_VERSION}
+COPY --from=builder /usr/local/lib/php/extensions/*/newrelic.so /tmp/newrelic.so
+COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini  /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini
+COPY --from=builder /tmp/newrelic-php-agent/bin/client  /usr/local/bin/newrelic-client
+COPY --from=builder /tmp/newrelic-php-agent/bin/daemon  /usr/local/bin/newrelic-daemon
+RUN mkdir -p $(php-config --extension-dir) && mv /tmp/newrelic.so $(php-config --extension-dir)/

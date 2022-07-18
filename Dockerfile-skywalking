@@ -1,6 +1,7 @@
-ARG PHP_VERSION
+ARG PHP_VERSION=8.1
 
 FROM php:${PHP_VERSION} as builder
+ARG SKYAPM_VERS=master
 
 LABEL maintainer="ahamsik@pixelfederation.com"
 LABEL container="PHP apm image container"
@@ -10,34 +11,17 @@ ENV TERM=xterm-color
 ENV SHELL=/bin/bash
 ENV MAKEFLAGS="-j 8 --load-average=10"
 
-# ENV PROTOBUF_VERSION 3.14.0
-# ENV PROTOBUF_URL https://github.com/protocolbuffers/protobuf/releases/download/v"$PROTOBUF_VERSION"/protobuf-cpp-"$PROTOBUF_VERSION".zip
-# ENV RUSTFLAGS="-Ctarget-feature=-crt-static"
-
 RUN apt-get update && \
-    apt-get install -y libmcrypt-dev zlib1g-dev libmemcached-dev \
-                       git automake wget unzip libtool-bin cmake \
-                       apt-transport-https lsb-release ca-certificates libfcgi0ldbl \
-                       openssl libssl-dev libzip-dev libbz2-dev libunwind-dev \
-                       zlib1g-dev cmake google-perftools libjemalloc-dev \
-                       libbrotli-dev libzstd-dev libnghttp2-dev libonig-dev libpcre3 libpcre3-dev libwebp-dev \
-                       liblz4-dev zlib1g-dev libsasl2-dev libssl-dev libzstd-dev rapidjson-dev python3 \
-                       protobuf-compiler protobuf-compiler-grpc
+    apt-get install -y git libcurl4-openssl-dev
 
-# RUN curl --silent -L -o protobuf.zip "$PROTOBUF_URL" && \
-#     unzip protobuf.zip && \
-#     cd protobuf-"$PROTOBUF_VERSION" && \
-#     ./configure && make && make install
-
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN curl https://sh.rustup.rs -LsSf | sh -s -- -y
 
 ENV PATH=${PATH}:/root/.cargo/bin
 
-RUN wget https://curl.se/download/curl-7.83.1.tar.gz -O /tmp/libcurl.tar.gz && \
-    tar -xzf /tmp/libcurl.tar.gz -C /tmp/ && \
-    cd /tmp/curl-7.83.1 && \
-    ./configure --with-openssl --with-nghttp2 --with-ngtcp2 --with-brotli --enable-versioned-symbols && \
-    make && rm /usr/local/include/curl &&   make install
+RUN git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-sdk.git /tmp/SkyAPM-php-sdk && cd /tmp/SkyAPM-php-sdk  && \
+    phpize && git submodule update --init && ./configure && make install && docker-php-ext-enable skywalking
 
-RUN git clone https://github.com/SkyAPM/SkyAPM-php-sdk.git /tmp/SkyAPM-php-sdk && cd /tmp/SkyAPM-php-sdk  && \
-    phpize && git submodule update --init && ./configure && make
+FROM php:${PHP_VERSION}
+COPY --from=builder /usr/local/lib/php/extensions/*/skywalking.so /tmp/skywalking.so
+COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini
+RUN mkdir -p $(php-config --extension-dir) && mv /tmp/skywalking.so $(php-config --extension-dir)/
