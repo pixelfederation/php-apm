@@ -24,4 +24,6 @@ RUN git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-s
 FROM php:${PHP_VERSION}
 COPY --from=builder /usr/local/lib/php/extensions/*/skywalking.so /tmp/skywalking.so
 COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini
-RUN mkdir -p $(php-config --extension-dir) && mv /tmp/skywalking.so $(php-config --extension-dir)/
+RUN mkdir -p $(php-config --extension-dir) && mkdir -p /src/ \
+    && cp /tmp/skywalking.so $(php-config --extension-dir)/ \
+    && mv /tmp/skywalking.so /src/
