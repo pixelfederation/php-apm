@@ -76,4 +76,4 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: Dockerfile-skywalking
           build-args: |
-            PHP_VERSION: ${{ steps.tag.outputs.tag }}
+            PHP_VERSION=${{ steps.tag.outputs.tag }}
