@@ -1,7 +1,7 @@
 ARG PHP_VERSION=8.1
 
 FROM php:${PHP_VERSION} as builder
-ARG SKYAPM_VERS=master
+ARG SKYAPM_VERS= 5.0.1
 
 LABEL maintainer="ahamsik@pixelfederation.com"
 LABEL container="PHP apm image container"
