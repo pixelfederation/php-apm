@@ -77,3 +77,4 @@ jobs:
           file: Dockerfile-skywalking
           build-args: |
             PHP_VERSION=${{ steps.tag.outputs.tag }}
+            SKYAPM_VERS=v4.2.0
