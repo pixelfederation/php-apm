@@ -9,12 +9,11 @@ LABEL container="PHP apm image container"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-color
 ENV SHELL=/bin/bash
-ENV MAKEFLAGS="-j 8 --load-average=10"
 ENV PROTOBUF_VERSION=3.14.0
 ENV PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v"$PROTOBUF_VERSION"/protobuf-cpp-"$PROTOBUF_VERSION".zip
 
 RUN apt-get update && \
-    apt-get install -y git libcurl4-openssl-dev
+    apt-get install -y git libcurl4-openssl-dev unzip
 
 RUN curl https://sh.rustup.rs -LsSf | sh -s -- -y
 
