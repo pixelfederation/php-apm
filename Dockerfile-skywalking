@@ -10,6 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-color
 ENV SHELL=/bin/bash
 ENV MAKEFLAGS="-j 8 --load-average=10"
+ENV PROTOBUF_VERSION=3.14.0
+ENV PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v"$PROTOBUF_VERSION"/protobuf-cpp-"$PROTOBUF_VERSION".zip
 
 RUN apt-get update && \
     apt-get install -y git libcurl4-openssl-dev
@@ -17,6 +19,9 @@ RUN apt-get update && \
 RUN curl https://sh.rustup.rs -LsSf | sh -s -- -y
 
 ENV PATH=${PATH}:/root/.cargo/bin
+
+RUN curl --silent -L -o protobuf.zip /tmp/$PROTOBUF_URL && cd /tmp/ && unzip protobuf.zip && \
+    cd protobuf-$PROTOBUF_VERSION && ./configure && make -j$(nproc) && make install
 
 RUN git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-sdk.git /tmp/SkyAPM-php-sdk && cd /tmp/SkyAPM-php-sdk  && \
     phpize && git submodule update --init && ./configure && make install && docker-php-ext-enable skywalking
