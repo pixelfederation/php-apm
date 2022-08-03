@@ -20,7 +20,7 @@ RUN curl https://sh.rustup.rs -LsSf | sh -s -- -y
 
 ENV PATH=${PATH}:/root/.cargo/bin
 
-RUN curl --silent -L -o protobuf.zip /tmp/$PROTOBUF_URL && cd /tmp/ && unzip protobuf.zip && \
+RUN curl --silent -L -o /tmp/protobuf.zip $PROTOBUF_URL && cd /tmp/ && unzip protobuf.zip && \
     cd protobuf-$PROTOBUF_VERSION && ./configure && make -j$(nproc) && make install
 
 RUN git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-sdk.git /tmp/SkyAPM-php-sdk && cd /tmp/SkyAPM-php-sdk  && \
