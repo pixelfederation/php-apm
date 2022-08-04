@@ -13,7 +13,7 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/local/lib64
 ENV LD_RUN_PATH=$LD_RUN_PATH:/usr/local/lib:/usr/local/lib64
 
 RUN apt-get update && apt-get install -y git curl libcurl4-openssl-dev build-essential autoconf libtool pkg-config \
-        cmake autoconf automake libtool curl make g++ unzip libboost-all-dev \
+        cmake autoconf automake libtool curl make g++ unzip libboost-all-dev zlib1g-dev \
     && git clone --depth 1 -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /tmp/grpc \
     && git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-sdk/ /tmp/skywalking \
     && cd /tmp/grpc && git clone https://github.com/google/re2.git ./third_party/re2 && git submodule update --init --recursive \
