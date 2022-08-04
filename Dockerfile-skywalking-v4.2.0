@@ -1,0 +1,32 @@
+ARG PHP_VERSION=8.0.16
+
+FROM php:${PHP_VERSION} as builder
+ARG SKYAPM_VERS=v4.2.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-color
+ENV SHELL=/bin/bash
+
+ENV GRPC_RELEASE_TAG v1.31.x
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/local/lib64
+ENV LD_RUN_PATH=$LD_RUN_PATH:/usr/local/lib:/usr/local/lib64
+
+RUN apt-get update && apt-get install -y git curl libcurl4-openssl-dev build-essential autoconf libtool pkg-config \
+        cmake autoconf automake libtool curl make g++ unzip libboost-all-dev \
+    && git clone --depth 1 -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /tmp/grpc \
+    && git clone --depth 1 -b ${SKYAPM_VERS} https://github.com/SkyAPM/SkyAPM-php-sdk/ /tmp/skywalking \
+    && cd /tmp/grpc && git clone https://github.com/google/re2.git ./third_party/re2 && git submodule update --init --recursive \
+    && mkdir -p cmake/build && cd cmake/build && cmake ../.. \
+    && make -j$(nproc) \
+    && cd /tmp/skywalking \
+    && phpize && ./configure --with-grpc=/tmp/grpc && make && make install \
+    && docker-php-ext-enable skywalking
+
+
+FROM php:${PHP_VERSION}
+COPY --from=builder /usr/local/lib/php/extensions/*/skywalking.so /tmp/skywalking.so
+COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini /usr/local/etc/php/conf.d/docker-php-ext-skywalking.ini
+RUN mkdir -p $(php-config --extension-dir) && mkdir -p /src/ \
+    && cp /tmp/skywalking.so $(php-config --extension-dir)/ \
+    && mv /tmp/skywalking.so /src/

@@ -70,11 +70,11 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ env.registry }}/${{ github.repository }}:${{ steps.tag.outputs.tag }}-skywalking
           builder: ${{ steps.buildx.outputs.name }}
-          file: Dockerfile-skywalking
+          file: Dockerfile-skywalking-v4.2.0
           build-args: |
             PHP_VERSION=${{ steps.tag.outputs.tag }}
             SKYAPM_VERS=v4.2.0
