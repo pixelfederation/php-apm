@@ -20,11 +20,39 @@ ENV PATH=${PATH}:/usr/local/go/bin
 RUN git clone -b ${NEWRELIC_VERS} https://github.com/newrelic/newrelic-php-agent.git /tmp/newrelic-php-agent && cd /tmp/newrelic-php-agent && \
     make all && make agent && make agent-install && docker-php-ext-enable newrelic
 
+RUN echo "newrelic.appname=swoole-bundle" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.license=eu01xx67a847701b7fb32f45c4c80c2fce9dNRAL" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.daemon.address=swoole-bundle-newrelic-daemon-1:31339" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.transaction_tracer.detail=1" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.transaction_tracer.threshold=500ms" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.transaction_tracer.stack_trace_threshold=500ms" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini && \
+    echo "newrelic.transaction_tracer.internal_functions_enabled=1" >> /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini
+
 RUN  mkdir /var/log/newrelic && chown 33:33  /var/log/newrelic
 
+FROM php:${PHP_VERSION} as builder-swoole
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-color
+ENV SHELL=/bin/bash
+ENV MAKEFLAGS="-j 10 --load-average=10"
+
+RUN apt-get update && apt-get install -y git build-essential libtool-bin libpcre3-dev
+ARG SWOOLE_VERSION="4.10.0"
+RUN if $(echo "$SWOOLE_VERSION" | grep -qE '^[4-9]\.[0-9]+\.[0-9]+$'); then SWOOLE_GIT_REF="v$SWOOLE_VERSION"; else SWOOLE_GIT_REF="$SWOOLE_VERSION"; fi && \
+    git clone https://github.com/openswoole/swoole-src.git --branch "$SWOOLE_GIT_REF" --depth 1 && \
+    cd swoole-src && \
+    phpize && \
+    ./configure && \
+    make && \
+    make install && \
+    docker-php-ext-enable openswoole
+
 FROM php:${PHP_VERSION}
+ARG PHP_API_VERSION="20210902"
 COPY --from=builder /usr/local/lib/php/extensions/*/newrelic.so /tmp/newrelic.so
 COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini  /usr/local/etc/php/conf.d/docker-php-ext-newrelic.ini
 COPY --from=builder /tmp/newrelic-php-agent/bin/client  /usr/local/bin/newrelic-client
 COPY --from=builder /tmp/newrelic-php-agent/bin/daemon  /usr/local/bin/newrelic-daemon
 RUN mkdir -p $(php-config --extension-dir) && mv /tmp/newrelic.so $(php-config --extension-dir)/
+COPY --from=builder-swoole /usr/local/lib/php/extensions/no-debug-non-zts-${PHP_API_VERSION}/openswoole.so /usr/local/lib/php/extensions/no-debug-non-zts-${PHP_API_VERSION}/openswoole.so
+COPY --from=builder-swoole /usr/local/etc/php/conf.d/docker-php-ext-openswoole.ini  /usr/local/etc/php/conf.d/docker-php-ext-openswoole.ini
