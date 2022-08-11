@@ -10,7 +10,7 @@ ENV TERM=xterm-color
 ENV SHELL=/bin/bash
 
 # https://tideways.com/profiler/blog/changelog
-ARG TIDEWAYS_EXT_VER=5.5.2
+ARG TIDEWAYS_EXT_VER=5.5.6
 ARG TIDEWAYS_DAEMON_VER=1.7.28
 
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-arm64.tar.gz
