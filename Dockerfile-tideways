@@ -12,23 +12,45 @@ ENV SHELL=/bin/bash
 # https://tideways.com/profiler/blog/changelog
 ARG TIDEWAYS_EXT_VER=5.5.2
 ARG TIDEWAYS_DAEMON_VER=1.7.28
+ARG TIDEWAYS_APIKEY=""
 
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-arm64.tar.gz
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-x86_64.tar.gz
-RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-$(dpkg-architecture --query DEB_BUILD_GNU_CPU).tar.gz -o /tmp/tideways-ext.tar.gz && \
+RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-arm64.tar.gz -o /tmp/tideways-ext.tar.gz && \
     tar -xzf /tmp/tideways-ext.tar.gz -C /tmp && cd /tmp/tideways-${TIDEWAYS_EXT_VER} && \
     ./install.sh && docker-php-ext-enable tideways
+RUN echo "extension=tideways.so\ntideways.connection=tcp://tideways-daemon:9135\ntideways.api_key=${TIDEWAYS_APIKEY}\ntideways.sample_rate=25\ntideways.dynamic_tracepoints.enable_web=1\ntideways.dynamic_tracepoints.enable_cli=1\ntideways.dynamic_tracepoints.update_interval_seconds=20\n" >> /usr/local/etc/php/conf.d/docker-php-ext-tideways.ini
 
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_amd64-1.7.28.tar.gz
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_aarch64-1.7.28.tar.gz
-RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/daemon/${TIDEWAYS_DAEMON_VER}/tideways-daemon_linux_$(dpkg-architecture --query DEB_BUILD_ARCH)-${TIDEWAYS_DAEMON_VER}.tar.gz -o /tmp/tideways-daemon.tar.gz && \
+RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/daemon/${TIDEWAYS_DAEMON_VER}/tideways-daemon_linux_aarch64-${TIDEWAYS_DAEMON_VER}.tar.gz -o /tmp/tideways-daemon.tar.gz && \
     tar -xzf /tmp/tideways-daemon.tar.gz -C /tmp && \
     cp /tmp/tideways-daemon_${TIDEWAYS_DAEMON_VER}/tideways-daemon /usr/local/bin/tideways-daemon && \
     chmod +x /usr/local/bin/tideways-daemon
 
+
+FROM php:${PHP_VERSION} as builder-swoole
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TERM=xterm-color
+ENV SHELL=/bin/bash
+ENV MAKEFLAGS="-j 10 --load-average=10"
+
+RUN apt-get update && apt-get install -y git build-essential libtool-bin libpcre3-dev
+ARG SWOOLE_VERSION="4.10.0"
+RUN if $(echo "$SWOOLE_VERSION" | grep -qE '^[4-9]\.[0-9]+\.[0-9]+$'); then SWOOLE_GIT_REF="v$SWOOLE_VERSION"; else SWOOLE_GIT_REF="$SWOOLE_VERSION"; fi && \
+    git clone https://github.com/openswoole/swoole-src.git --branch "$SWOOLE_GIT_REF" --depth 1 && \
+    cd swoole-src && \
+    phpize && \
+    ./configure && \
+    make && \
+    make install && \
+    docker-php-ext-enable openswoole
+
 FROM php:${PHP_VERSION}
-COPY --from=builder /usr/local/lib/php/extensions/no-debug-non-zts-20210902/tideways.so /tmp/tideways.so
+ARG PHP_API_VERSION="20210902"
+COPY --from=builder /usr/local/lib/php/extensions/no-debug-non-zts-${PHP_API_VERSION}/tideways.so /tmp/tideways.so
 COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-tideways.ini /usr/local/etc/php/conf.d/docker-php-ext-tideways.ini
 COPY --from=builder /usr/local/bin/tideways-daemon /usr/local/bin/tideways-daemon
 RUN mkdir -p $(php-config --extension-dir) && mv /tmp/tideways.so $(php-config --extension-dir)/
-
+COPY --from=builder-swoole /usr/local/lib/php/extensions/no-debug-non-zts-${PHP_API_VERSION}/openswoole.so /usr/local/lib/php/extensions/no-debug-non-zts-${PHP_API_VERSION}/openswoole.so
+COPY --from=builder-swoole /usr/local/etc/php/conf.d/docker-php-ext-openswoole.ini  /usr/local/etc/php/conf.d/docker-php-ext-openswoole.ini
