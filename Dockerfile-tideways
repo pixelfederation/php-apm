@@ -15,20 +15,22 @@ ARG TIDEWAYS_DAEMON_VER=1.7.28
 
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-arm64.tar.gz
 # https://s3-eu-west-1.amazonaws.com/tideways/extension/5.5.2/tideways-php-5.5.2-x86_64.tar.gz
-RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-$( [[ `dpkg-architecture |grep HOST|grep arm` ]] && dpkg-architecture --query DEB_HOST_ARCH || dpkg-architecture --query DEB_BUILD_GNU_CPU).tar.gz -o /tmp/tideways-ext.tar.gz && \
+RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/extension/${TIDEWAYS_EXT_VER}/tideways-php-${TIDEWAYS_EXT_VER}-$( dpkg-architecture |grep HOST|grep -q arm && dpkg-architecture --query DEB_HOST_ARCH || dpkg-architecture --query DEB_BUILD_GNU_CPU).tar.gz -o /tmp/tideways-ext.tar.gz && \
     tar -xzf /tmp/tideways-ext.tar.gz -C /tmp && cd /tmp/tideways-${TIDEWAYS_EXT_VER} && \
     ./install.sh && docker-php-ext-enable tideways
 
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_amd64-1.7.28.tar.gz
 # https://s3-eu-west-1.amazonaws.com/tideways/daemon/1.7.28/tideways-daemon_linux_aarch64-1.7.28.tar.gz
-RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/daemon/${TIDEWAYS_DAEMON_VER}/tideways-daemon_linux_$( [[ `dpkg-architecture |grep HOST|grep aarch` ]] && dpkg-architecture --query DEB_HOST_GNU_CPU || dpkg-architecture --query DEB_HOST_ARCH)-${TIDEWAYS_DAEMON_VER}.tar.gz -o /tmp/tideways-daemon.tar.gz && \
+RUN curl -LSs https://s3-eu-west-1.amazonaws.com/tideways/daemon/${TIDEWAYS_DAEMON_VER}/tideways-daemon_linux_$( dpkg-architecture |grep HOST|grep -q aarch && dpkg-architecture --query DEB_HOST_GNU_CPU || dpkg-architecture --query DEB_HOST_ARCH)-${TIDEWAYS_DAEMON_VER}.tar.gz -o /tmp/tideways-daemon.tar.gz && \
     tar -xzf /tmp/tideways-daemon.tar.gz -C /tmp && \
     cp /tmp/tideways-daemon_${TIDEWAYS_DAEMON_VER}/tideways-daemon /usr/local/bin/tideways-daemon && \
     chmod +x /usr/local/bin/tideways-daemon
 
 FROM php:${PHP_VERSION}
-COPY --from=builder /usr/local/lib/php/extensions/no-debug-non-zts-20210902/tideways.so /tmp/tideways.so
+COPY --from=builder /usr/local/lib/php/extensions/*/tideways.so /tmp/tideways.so
 COPY --from=builder /usr/local/etc/php/conf.d/docker-php-ext-tideways.ini /usr/local/etc/php/conf.d/docker-php-ext-tideways.ini
 COPY --from=builder /usr/local/bin/tideways-daemon /usr/local/bin/tideways-daemon
-RUN mkdir -p $(php-config --extension-dir) && mv /tmp/tideways.so $(php-config --extension-dir)/
+RUN mkdir -p $(php-config --extension-dir) && mkdir -p /src/ \
+    && cp /tmp/tideways.so $(php-config --extension-dir)/ \
+    && mv /tmp/tideways.so /src/
 
