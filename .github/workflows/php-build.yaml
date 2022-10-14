@@ -2,7 +2,7 @@ name: docker-php-apm-build
 
 env:
   registry: ghcr.io
-  TIDEWAYS_EXT_VER: 5.5.9
+  TIDEWAYS_EXT_VER: 5.5.8
   TIDEWAYS_DAEMON_VER: 1.8.12
 
 
